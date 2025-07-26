@@ -38,12 +38,17 @@
 @section('scripts')
     <script>
         document.querySelectorAll('.toggle-password').forEach(toggle => {
-            toggle.addEventListener('click', function() {
-                const input = this.previousElementSibling;
+            toggle.addEventListener('click', function (e) {
+                // Find the input field within the same parent container
+                const input = e.target.closest('.f-password').querySelector('input');
+
+                // Toggle the type attribute
                 const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
                 input.setAttribute('type', type);
-                this.classList.toggle('fa-eye');
-                this.classList.toggle('fa-eye-slash');
+
+                // Toggle the eye icon
+                e.target.classList.toggle('fa-eye');
+                e.target.classList.toggle('fa-eye-slash');
             });
         });
     </script>

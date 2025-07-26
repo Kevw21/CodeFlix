@@ -1,4 +1,4 @@
-@extends('layouts.subscription')
+@extends('layouts.subscribe')
 
 @section('title', 'Plan Detail')
 @section('page-title', 'Plan Detail')
