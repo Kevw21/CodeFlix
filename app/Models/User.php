@@ -52,6 +52,11 @@ class User extends Authenticatable
         return $this->hasMany(Membership::class);
     }
 
+    public function devices(): HasMany
+    {
+        return $this->hasMany(UserDevice::class);
+    }
+
     public function hasMembershipPlan(): bool
     {
         return $this->memberships()
