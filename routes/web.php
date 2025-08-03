@@ -26,4 +26,12 @@ Route::post('/logout', function (Request $request) {
 })->name('logout')->middleware(['auth', 'logout.device']);
 
 
+Route::get('/text-expired', function () {
+    $membership = \App\Models\Membership::find(1);
+    event(new \App\Events\MembershipHasExpired($membership));
+
+    return 'Event fired';
+});
+
+
 
