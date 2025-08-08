@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Midtrans\Config;
 use Midtrans\Snap;
 use App\Models\Transaction;
@@ -69,5 +71,57 @@ class TransactionController extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function callback(Request $request)
+    {
+        $serverKey = config('midtrans.server_key');
+        $hashed = hash('sha512', $request->order_id . $request->status_code . $request->gross_amount . $serverKey);
+
+        if ($hashed == $request->signature_key) {
+            $transaction = Transaction::with(['user', 'plan'])->where('transaction_number', $request->order_id)->first();
+
+            if ($transaction) {
+                $paymentStatus = 'pending';
+
+                if ($request->transaction_status == 'capture' || $request->transaction_status == 'settlement') {
+                    $paymentStatus = 'success';
+
+                    $user = $transaction->user;
+                    $plan = $transaction->plan;
+
+                    try {
+                        DB::beginTransaction();
+
+                        $user->memberships()->create([
+                            'plan_id' => $plan->id,
+                            'start_date' => now(),
+                            'end_date' => now()->addDays($plan->duration),
+                            'active' => true,
+                        ]);
+
+                        $transaction->update([
+                            'payment_status' => $paymentStatus,
+                            'midtrans_transaction_id' => $request->transaction_id,
+                        ]);
+
+                        DB::commit();
+                    } catch (\Exception $e) {
+                        Log::error('Failed to process successful payment: ' . $e->getMessage());
+                        return response()->json(['status' => 'error', 'message' => 'Failed to process membership'], 500);
+                    }
+                } elseif ($request->transaction_status == 'deny' || $request->transaction_status == 'cancel' || $request->transaction_status == 'expire') {
+                    $paymentStatus = 'failed';
+                    $transaction->update([
+                        'payment_status' => $paymentStatus,
+                        'midtrans_transaction_id' => $request->transaction_id,
+                    ]);
+                }
+
+                return response()->json(['status' => 'success']);
+            }
+        }
+
+        return response()->json(['status' => 'error'], 404);
     }
 }
